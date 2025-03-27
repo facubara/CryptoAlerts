@@ -6,8 +6,6 @@ from datetime import datetime, timedelta, timezone
 import time
 
 # Configuration
-BOT_TOKEN = '7514996270:AAEhxqAeMePmunqCyHDPN_di5TGpnl1LzoA'
-CHAT_ID = 431930778
 NUMBER_OF_CANDLES = 350
 TIMEFRAME = '30m'
 CSV_FILE = 'giga_30m_historic.csv'
