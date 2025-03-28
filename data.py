@@ -4,11 +4,15 @@ import math
 import requests
 from datetime import datetime, timedelta, timezone
 import time
+from dotenv import load_dotenv
+import os
+
 
 # Configuration
 NUMBER_OF_CANDLES = 350
 TIMEFRAME = '30m'
 CSV_FILE = 'giga_30m_historic.csv'
+RSI_CSV_FILE = 'giga_30m_rsi.csv'
 BEGINNING_TIMESTAMP = 1733936400  # Example beginning timestamp
 
 def send_telegram_message(token, chat_id, message):
@@ -37,9 +41,7 @@ def fetch_candles(start, end, timeframe):
         response.raise_for_status()
         data = response.json()
         candles = data.get('candles', [])
-        print(candles)
         df = pd.DataFrame(candles).iloc[::-1]
-        print(df)
         df.rename(columns={'start': 'timestamp'}, inplace=True)
         # df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
         df[['open', 'high', 'low', 'close', 'volume']] = df[['open', 'high', 'low', 'close', 'volume']].apply(pd.to_numeric)
@@ -97,16 +99,15 @@ def update_historic(csv_file, number_of_candles, timeframe_minutes, beginning_ti
         latest_timestamp = existing_data['timestamp'].max() if not existing_data.empty else datetime.fromtimestamp(beginning_timestamp, tz=timezone.utc)
         now = datetime.now(timezone.utc)
         next_run = now.replace(minute=30, second=0, microsecond=0) if now.minute < 30 else (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-        print(f"int next_run: {int(next_run.timestamp())}")
-        print(f"int latesttimestamp: {latest_timestamp}")
+        # print(f"int next_run: {int(next_run.timestamp())}")
+        # print(f"int latesttimestamp: {latest_timestamp}")
         while (int(latest_timestamp) + 30*60 < get_unix_timestamp(next_run)):
-            print(f"latest_timestamp: {datetime.fromtimestamp(int(latest_timestamp), tz=timezone.utc)}")
+            # print(f"latest_timestamp: {datetime.fromtimestamp(int(latest_timestamp), tz=timezone.utc)}")
             start = int(latest_timestamp) + 30*60
             end = calculate_timestamps(start, number_of_candles)
-            print(f"start: {datetime.fromtimestamp(start, tz=timezone.utc)}")
-            print(f"end: {datetime.fromtimestamp(end, tz=timezone.utc)}")
+            # print(f"start: {datetime.fromtimestamp(start, tz=timezone.utc)}")
+            # print(f"end: {datetime.fromtimestamp(end, tz=timezone.utc)}")
             new_data = fetch_candles(start, end, f"{timeframe_minutes}_MINUTE")
-            print(new_data)
             if new_data.empty:
                 break
             new_data.to_csv(csv_file,mode='a', index=False, header=False)
@@ -116,12 +117,28 @@ def update_historic(csv_file, number_of_candles, timeframe_minutes, beginning_ti
         print("CSV file not found or empty. Creating a new one from the beginning timestamp.")
         start = beginning_timestamp
         end = calculate_timestamps(start, number_of_candles)
-        print(f"start: {start}")
-        print(f"end: {end}")
+        # print(f"start: {start}")
+        # print(f"end: {end}")
         new_data = fetch_candles(start, end, f"{timeframe_minutes}_MINUTE")
         new_data.to_csv(csv_file, index=False)
         print("New CSV file created.")
 
+def update_rsi(rsi_csv_file):
+    df = pd.read_csv('giga_30m_historic.csv')
+    print(df)
+    df['rsi'] = calculate_rsi(df)
+    print(df)
+    df = df[['timestamp', 'rsi']]
+    print(df)
+    df.to_csv(rsi_csv_file, index=False)
+    # existing_data = pd.read_csv(rsi_csv_file, parse_dates=['timestamp'], date_format=pd.Timestamp)
+    # latest_timestamp = existing_data['timestamp'].max() if not existing_data.empty else datetime.fromtimestamp(beginning_timestamp, tz=timezone.utc)
+
 if __name__ == "__main__":
+    load_dotenv()
+
+    BOT_TOKEN = os.getenv('API_KEY')
+    CHAT_ID = os.getenv('CHAT_ID')
     update_historic(CSV_FILE, NUMBER_OF_CANDLES, 30, BEGINNING_TIMESTAMP)
+    update_rsi(RSI_CSV_FILE)
     # check_rsi()
