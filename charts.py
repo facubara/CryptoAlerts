@@ -27,26 +27,33 @@ def createHorizontalLine(chart, value):
     horPD = pd.read_csv('giga_30m_rsi.csv')
     horPD.rename(columns={'timestamp': 'time'}, inplace=True)
     horPD.rename(columns={'rsi':'value'}, inplace=True)
-    horPD['time'] = pd.to_datetime(df2['time'], unit='s', utc=True)
+    horPD['time'] = pd.to_datetime(horPD['time'], unit='s', utc=True)
     horPD['value'] = value
     linehor.set(horPD[['time', 'value']])
+
+def loadAndFormatCandlesticksDataframe(csv_file) -> pd.DataFrame:
+    df = pd.read_csv(csv_file)
+    df.rename(columns={'timestamp': 'time'}, inplace=True)
+    df['time'] = pd.to_datetime(df['time'], unit='s', utc=True)
+    return df
+
+def loadAndFormatRSIDataframe(csv_file) -> pd.DataFrame:
+    df = pd.read_csv(csv_file)
+    df.rename(columns={'timestamp': 'time'}, inplace=True)
+    df.rename(columns={'rsi':'value'}, inplace=True)
+    df['time'] = pd.to_datetime(df['time'], unit='s', utc=True)
+    return df
 
 if __name__ == '__main__':
     # Create the main chart
     chart = Chart(title="GIGAUSDC", inner_height=0.6, inner_width=1)
     chart.precision(5)
 
-    # Load and prepare the main chart data
-    df = pd.read_csv('giga_30m_historic.csv')
-    df.rename(columns={'timestamp': 'time'}, inplace=True)
-    df['time'] = pd.to_datetime(df['time'], unit='s', utc=True)
+    df = loadAndFormatCandlesticksDataframe('giga_30m_historic.csv')
     chart.watermark(text="GIGAUSDC")
 
     # Load and prepare the RSI data
-    df2 = pd.read_csv('giga_30m_rsi.csv')
-    df2.rename(columns={'timestamp': 'time'}, inplace=True)
-    df2.rename(columns={'rsi':'value'}, inplace=True)
-    df2['time'] = pd.to_datetime(df2['time'], unit='s', utc=True)
+    df_rsi = loadAndFormatRSIDataframe('giga_30m_rsi.csv')
 
     # Create a subchart for the RSI
     chart2 = chart.create_subchart(width=1, height=0.4, sync=True)
@@ -58,7 +65,7 @@ if __name__ == '__main__':
 
     # Set the data for the main chart and RSI line
     chart.set(df)
-    line.set(df2[['time', 'value']])  # Ensure only time and rsi columns are used
+    line.set(df_rsi[['time', 'value']])  # Ensure only time and rsi columns are used
     chart2.fit()
     # print(df2)
     # Show the chart
