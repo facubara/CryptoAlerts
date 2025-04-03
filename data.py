@@ -5,8 +5,12 @@ import requests
 from datetime import datetime, timedelta, timezone
 import time
 from dotenv import load_dotenv
+from colorama import Fore, Style, init
 import os
 
+
+# Initialize colorama
+init(autoreset=True)
 
 # Configuration
 NUMBER_OF_CANDLES = 350
@@ -131,6 +135,57 @@ def update_rsi(rsi_csv_file):
     # existing_data = pd.read_csv(rsi_csv_file, parse_dates=['timestamp'], date_format=pd.Timestamp)
     # latest_timestamp = existing_data['timestamp'].max() if not existing_data.empty else datetime.fromtimestamp(beginning_timestamp, tz=timezone.utc)
 
+
+
+def simulate_portfolio(portfolio_size, rsi_level_1, rsi_level_2, transaction_file):
+    """Simulate a portfolio and execute trades based on RSI levels."""
+    # Initialize portfolio
+    cash = portfolio_size
+    holdings = 0
+    transaction_log = []
+
+    # Load historical data
+    df = pd.read_csv(CSV_FILE)
+    df['rsi'] = calculate_rsi(df)
+
+    with open(transaction_file, 'w') as file:
+        file.write("Timestamp,Action,Amount,Price,Gain/Loss\n")
+
+        for index, row in df.iterrows():
+            current_rsi = row['rsi']
+            current_price = row['close']
+            gain_loss = 0
+
+            # Buy condition
+            if current_rsi < rsi_level_1 and cash > 0:
+                # Buy as much as possible with available cash
+                amount_to_buy = cash / current_price
+                holdings += amount_to_buy
+                cash = 0
+                transaction_log.append((row['timestamp'], 'BUY', amount_to_buy, current_price, gain_loss))
+                file.write(f"{row['timestamp']},BUY,{amount_to_buy},{current_price},{gain_loss}\n")
+                print(f"{Fore.GREEN}Bought {Fore.CYAN}{amount_to_buy} units {Fore.RESET}at {Fore.MAGENTA}{current_price} {Fore.RESET}on {row['timestamp']}")
+
+            # Sell condition
+            elif current_rsi > rsi_level_2 and holdings > 0:
+                # Calculate gain/loss
+                gain_loss = (current_price - transaction_log[-1][3]) * holdings
+                # Sell all holdings
+                cash += holdings * current_price
+                transaction_log.append((row['timestamp'], 'SELL', holdings, current_price, gain_loss))
+                file.write(f"{row['timestamp']},SELL,{holdings},{current_price},{gain_loss}\n")
+                gain_loss_color = Fore.GREEN if gain_loss >= 0 else Fore.RED
+                print(f"{Fore.RED}Sold {Fore.CYAN}{holdings} units {Fore.RESET}at {Fore.MAGENTA}{current_price} {Fore.RESET}on {row['timestamp']} with gain/loss: {gain_loss_color}{gain_loss}")
+                holdings = 0
+
+    # Final portfolio value
+    final_value = cash + holdings * df.iloc[-1]['close']
+    percentage_change = ((final_value - portfolio_size) / portfolio_size) * 100
+    percentage_color = Fore.GREEN if percentage_change >= 0 else Fore.RED
+    print(f"Final portfolio value: {Fore.GREEN if final_value >= portfolio_size else Fore.RED}{final_value:.2f}")
+    print(f"Percentage change: {percentage_color}{percentage_change:.2f}%")
+    return transaction_log, final_value
+
 if __name__ == "__main__":
     load_dotenv()
 
@@ -138,4 +193,15 @@ if __name__ == "__main__":
     CHAT_ID = os.getenv('CHAT_ID')
     update_historic(CSV_FILE, NUMBER_OF_CANDLES, 30, BEGINNING_TIMESTAMP)
     update_rsi(RSI_CSV_FILE)
+
+     # Simulate portfolio
+    portfolio_size = 1000  # Example portfolio size
+    rsi_level_1 = 30  # RSI level to buy
+    rsi_level_2 = 70  # RSI level to sell
+    transaction_file = 'transaction_log.txt'
+    transaction_log, final_value = simulate_portfolio(portfolio_size, rsi_level_1, rsi_level_2, transaction_file)
+
+    # Print transaction log
+    # for transaction in transaction_log:
+    #     print(transaction)
     # check_rsi()
