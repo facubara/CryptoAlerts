@@ -125,11 +125,8 @@ def update_historic(csv_file, number_of_candles, timeframe_minutes, beginning_ti
 
 def update_rsi(rsi_csv_file):
     df = pd.read_csv('giga_30m_historic.csv')
-    print(df)
     df['rsi'] = calculate_rsi(df)
-    print(df)
     df = df[['timestamp', 'rsi']]
-    print(df)
     df.to_csv(rsi_csv_file, index=False)
     # existing_data = pd.read_csv(rsi_csv_file, parse_dates=['timestamp'], date_format=pd.Timestamp)
     # latest_timestamp = existing_data['timestamp'].max() if not existing_data.empty else datetime.fromtimestamp(beginning_timestamp, tz=timezone.utc)
