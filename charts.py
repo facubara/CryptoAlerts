@@ -74,7 +74,6 @@ def loadTransactionLog(transaction_file):
     return markers
 
 
-
 if __name__ == '__main__':
     # Create the main chart
     chart = Chart(title="GIGAUSDC", inner_height=0.5, inner_width=1, height=1000, width=1000)

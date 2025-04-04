@@ -186,6 +186,55 @@ def simulate_portfolio(portfolio_size, rsi_level_1, rsi_level_2, transaction_fil
     print(f"Percentage change: {percentage_color}{percentage_change:.2f}%")
     return transaction_log, final_value
 
+
+def test_simulate_portfolio(portfolio_size, rsi_level_1, rsi_level_2, df_rsi, df):
+    """Simulate a portfolio and execute trades based on RSI levels."""
+    cash = portfolio_size
+    holdings = 0
+
+    for index, row in df_rsi.iterrows():
+        current_rsi = row['value']
+        current_price = df.loc[df['time'] == row['time'], 'close'].values[0]
+
+        # Buy condition
+        if current_rsi < rsi_level_1 and cash > 0:
+            amount_to_buy = cash / current_price
+            holdings += amount_to_buy
+            cash = 0
+
+        # Sell condition
+        elif current_rsi > rsi_level_2 and holdings > 0:
+            cash += holdings * current_price
+            holdings = 0
+
+    final_value = cash + holdings * df.iloc[-1]['close']
+    percentage_change = ((final_value - portfolio_size) / portfolio_size) * 100
+    return percentage_change
+
+def find_best_thresholds(portfolio_size, df_rsi, df, low_range, high_range, output_file):
+    """Find the best RSI thresholds for maximizing portfolio gains."""
+    best_gain = float('-inf')
+    best_low = None
+    best_high = None
+
+    with open(output_file, 'w') as file:
+        file.write("Low Threshold,High Threshold,Percentage Change\n")
+
+        for low in low_range:
+            for high in high_range:
+                if low >= high:
+                    continue
+
+                percentage_change = test_simulate_portfolio(portfolio_size, low, high, df_rsi, df)
+                file.write(f"{low},{high},{percentage_change:.2f}\n")
+
+                if percentage_change > best_gain:
+                    best_gain = percentage_change
+                    best_low = low
+                    best_high = high
+
+    return best_low, best_high, best_gain
+
 if __name__ == "__main__":
     load_dotenv()
 
@@ -195,12 +244,32 @@ if __name__ == "__main__":
     update_rsi(RSI_CSV_FILE)
 
      # Simulate portfolio
-    portfolio_size = 1000  # Example portfolio size
-    rsi_level_1 = 30  # RSI level to buy
-    rsi_level_2 = 70  # RSI level to sell
-    transaction_file = 'transaction_log.txt'
-    transaction_log, final_value = simulate_portfolio(portfolio_size, rsi_level_1, rsi_level_2, transaction_file)
+    # portfolio_size = 1000  # Example portfolio size
+    # rsi_level_1 = 30  # RSI level to buy
+    # rsi_level_2 = 70  # RSI level to sell
+    # transaction_file = 'transaction_log.txt'
+    # transaction_log, final_value = simulate_portfolio(portfolio_size, rsi_level_1, rsi_level_2, transaction_file)
 
+    # # Define parameters
+    # portfolio_size = 10000  # Example portfolio size
+    # low_range = range(10, 50, 1)  # Example range for low thresholds
+    # high_range = range(50, 90, 1)  # Example range for high thresholds
+    # output_file = 'threshold_results.txt'
+    # # Load data
+    # df = pd.read_csv('giga_30m_historic.csv')
+    # df.rename(columns={'timestamp': 'time'}, inplace=True)
+    # df['time'] = pd.to_datetime(df['time'], unit='s', utc=True)
+    # df_rsi = pd.read_csv('giga_30m_rsi.csv')
+    # df_rsi.rename(columns={'timestamp': 'time'}, inplace=True)
+    # df_rsi.rename(columns={'rsi':'value'}, inplace=True)
+    # df_rsi = df_rsi.dropna(subset=['value'])
+    # df_rsi['time'] = pd.to_datetime(df_rsi['time'], unit='s', utc=True)
+    # # Find the best thresholds
+
+    # best_low, best_high, best_gain = find_best_thresholds(portfolio_size, df_rsi, df, low_range, high_range, output_file)
+
+    # # Print the best result
+    # print(f"Best Low Threshold: {best_low}, Best High Threshold: {best_high}, Best Gain: {best_gain:.2f}%")
     # Print transaction log
     # for transaction in transaction_log:
     #     print(transaction)
